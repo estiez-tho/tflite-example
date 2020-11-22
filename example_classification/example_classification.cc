@@ -6,7 +6,9 @@
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/tools/gen_op_registration.h"
+#ifdef USE_GPU
 #include "tensorflow/lite/delegates/gpu/delegate.h"
+#endif // USE_GPU
 #include <iostream>
 #include <algorithm>
 #include <string>
@@ -18,7 +20,6 @@ const std::string DEFAULT_MODEL = "./example_classification/mobilenet.tflite";
 const std::string DEFAULT_IMAGE = "./images/goldfish.png";
 const std::string DEFAULT_LABELS = "./example_classification/labels.txt";
 
-ABSL_FLAG(std::string, inference_mode, "CPU", "run the inference on CPU or GPU : CPU | GPU");
 ABSL_FLAG(std::string, model_file, DEFAULT_MODEL, "TFLite model to use for the inference; Note : input must have RGB channels");
 ABSL_FLAG(std::string, image_file, DEFAULT_IMAGE, "Image file to run the inference on");
 ABSL_FLAG(std::string, label_file, DEFAULT_LABELS, "File containing the labels for the classification");
@@ -83,7 +84,7 @@ void ReadOutput(const char *label_file, float *output_tensor)
     }
 }
 
-void run_inference(std::string inference_mode, const char *image_file, const char *model_path, const char *label_file, int number_of_inferences)
+void run_inference(const char *image_file, const char *model_path, const char *label_file, int number_of_inferences)
 {
     auto model = tflite::FlatBufferModel::BuildFromFile(model_path);
 
@@ -96,15 +97,14 @@ void run_inference(std::string inference_mode, const char *image_file, const cha
     std::unique_ptr<tflite::Interpreter> interpreter;
     tflite::InterpreterBuilder(*model, op_resolver)(&interpreter);
 
-    if (inference_mode == "GPU")
+#ifdef USE_GPU
+    auto *delegate = TfLiteGpuDelegateV2Create(nullptr);
+    if (interpreter->ModifyGraphWithDelegate(delegate) != kTfLiteOk)
     {
-        auto *delegate = TfLiteGpuDelegateV2Create(nullptr);
-        if (interpreter->ModifyGraphWithDelegate(delegate) != kTfLiteOk)
-        {
-            std::cout << "Could not setup GPU delegate" << std::endl;
-            return;
-        }
+        std::cout << "Could not setup GPU delegate" << std::endl;
+        return;
     }
+#endif // USE_GPU
 
     interpreter->AllocateTensors();
     auto input = interpreter->inputs()[0];
@@ -139,35 +139,22 @@ int main(int argc, char **argv)
 {
     /**
      * MUST HAVE THE 4 FOLLOWING ARGUMENTS : 
-     * inference_mode : GPU | CPU 
      * model_file : path to the tflite_model
      * label_file : path to the output labels
      * image_file : path to the image to run the inference on
     */
     absl::ParseCommandLine(argc, argv);
-
-    std::string inference_mode = absl::GetFlag(FLAGS_inference_mode);
     std::string model_file = absl::GetFlag(FLAGS_model_file);
     std::string image_file = absl::GetFlag(FLAGS_image_file);
     std::string label_file = absl::GetFlag(FLAGS_label_file);
     int number_of_inferences = absl::GetFlag(FLAGS_number_of_inferences);
 
-    if (!(inference_mode == "GPU" || inference_mode == "CPU"))
-    {
-        std::cout << "inference_mode must be either CPU or GPU" << std::endl;
-        return 1;
-    }
-    std::cout << "=========================================================" << std::endl;
-    std::cout << "[" << inference_mode << "] "
-              << "C++ tflite inference" << std::endl;
-
     std::cout
         << "Inference details : " << std::endl
-        << "inference_mode : " << inference_mode << std::endl
         << "model_file : " << model_file << std::endl
         << "label_file : " << label_file << std::endl
         << "image_file : " << image_file << std::endl
         << "number_of_inference : " << number_of_inferences << std::endl;
 
-    run_inference(inference_mode, image_file.c_str(), model_file.c_str(), label_file.c_str(), number_of_inferences);
+    run_inference(image_file.c_str(), model_file.c_str(), label_file.c_str(), number_of_inferences);
 }

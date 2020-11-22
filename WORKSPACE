@@ -30,11 +30,7 @@ new_local_repository(
     path = "",
 )
 
-new_local_repository(
-    name = "windows_egl",
-    build_file = "",
-    path = "",
-)
+
 
 local_repository(
     name = "org_tensorflow",

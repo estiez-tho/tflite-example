@@ -1,0 +1,1 @@
+bazel build -c opt --copt -DEGL_NO_X11 --action_env PYTHON_BIN_PATH="C:\Python39\python.exe" --verbose_failures example_classification:classification_cpu

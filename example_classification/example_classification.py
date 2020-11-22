@@ -64,8 +64,6 @@ def main():
     parser.add_argument("--label_file", default="./example_classification/labels.txt", help="File containing the labels for the classification")
     parser.add_argument("--number_of_inferences", default=1, help="number of inferences to run", type=int)
     args = parser.parse_args()
-    print("=========================================================")
-    print("Python tflite inference")
     print("Inference details : ")
     print(f"model_file : {args.model_file}")
     print(f"label_file : {args.label_file}")
